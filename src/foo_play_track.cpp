@@ -29,10 +29,12 @@ namespace
 		{
 			if (index >= count) FB2K_BugCheck();
 
+			const std::string str = std::string(component_name) + std::to_string(index);
+
 			auto api = hasher_md5::get();
 			hasher_md5_state state;
 			api->initialize(state);
-			api->process(state, &index, sizeof(index));
+			api->process_string(state, str.c_str());
 			return api->get_result_guid(state);
 		}
 
