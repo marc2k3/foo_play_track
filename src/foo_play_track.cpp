@@ -60,7 +60,7 @@ namespace
 			}
 			else
 			{
-				out = pfc::format("Play track ", std::to_string(index + 1U).c_str(), " from the active playlist.");
+				out = pfc::format("Play track ", index + 1U, " from the active playlist.");
 			}
 			return true;
 		}
