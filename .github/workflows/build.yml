@@ -1,0 +1,62 @@
+name: build
+on: [push, pull_request]
+jobs:
+  build:
+    name: ${{ matrix.project }}-${{ matrix.configuration }}
+    runs-on: windows-2022
+
+    strategy:
+      matrix:
+        configuration: [Release, Debug]
+        project: [foo_play_track]
+
+    steps:
+    - name: Clone repo
+      run: |
+        git clone --recursive ${{ github.server_url }}/${{ github.repository }}
+
+    - name: Set up MSBuild
+      uses: microsoft/setup-msbuild@v1.3
+
+    - name: Create component folder
+      run: |
+        mkdir component
+        mkdir component\x64
+
+    - name: Build x86
+      working-directory: ${{ matrix.project }}
+      run: |
+        msbuild src\${{ matrix.project }}.sln -m -p:Platform=Win32 -p:Configuration=${{ matrix.configuration }}
+        copy src\Win32\${{ matrix.configuration }}\${{ matrix.project }}.dll ..\component
+        copy src\Win32\${{ matrix.configuration }}\${{ matrix.project }}.pdb ..\component
+        git clean -fdx && git submodule foreach --recursive git clean -fdx
+
+    - name: Build x64
+      working-directory: ${{ matrix.project }}
+      run: |
+        msbuild src\${{ matrix.project }}.sln -m -p:Platform=x64 -p:Configuration=${{ matrix.configuration }}
+        copy src\x64\${{ matrix.configuration }}\${{ matrix.project }}.dll ..\component\x64
+        copy src\x64\${{ matrix.configuration }}\${{ matrix.project }}.pdb ..\component\x64
+
+    - name: Upload with pdb
+      if: startsWith(github.ref, 'refs/tags') && matrix.configuration == 'Release'
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ matrix.project }}-${{ github.ref_name }}-with-pdb
+        path: component
+
+    - name: Delete pdb files and zip for release
+      if: startsWith(github.ref, 'refs/tags') && matrix.configuration == 'Release'
+      working-directory: component
+      run: |
+        del ${{ matrix.project }}.pdb
+        del x64\${{ matrix.project }}.pdb
+        7z a -tzip ${{ matrix.project }}-${{ github.ref_name }}.fb2k-component *
+
+    - name: Release
+      if: startsWith(github.ref, 'refs/tags') && matrix.configuration == 'Release'
+      uses: softprops/action-gh-release@v1
+      with:
+        files: component/${{ matrix.project }}-${{ github.ref_name }}.fb2k-component
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
