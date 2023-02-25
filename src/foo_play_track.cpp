@@ -18,7 +18,7 @@ namespace
 
 	DECLARE_COMPONENT_VERSION(
 		component_name,
-		"1.0.1",
+		"1.0.2",
 		"Copyright (C) 2023 marc2003\n\n"
 		"Build: " __TIME__ ", " __DATE__
 	);
