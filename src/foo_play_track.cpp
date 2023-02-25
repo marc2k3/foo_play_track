@@ -52,11 +52,11 @@ namespace
 
 			if (index == last)
 			{
-				out = "Play last track from the active playlist";
+				out = "Play last track from the active playlist.";
 			}
 			else if (index == random)
 			{
-				out = "Play random track from the active playlist";
+				out = "Play random track from the active playlist.";
 			}
 			else
 			{
