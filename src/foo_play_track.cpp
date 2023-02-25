@@ -47,7 +47,14 @@ namespace
 		{
 			if (index >= count) FB2K_BugCheck();
 
-			get_name(index, out);
+			if (index == last)
+			{
+				out = "Play last track from the active playlist";
+			}
+			else
+			{
+				out = pfc::format("Play track ", std::to_string(index + 1U).c_str(), " from the active playlist.");
+			}
 			return true;
 		}
 
