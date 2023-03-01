@@ -2,6 +2,7 @@
 #define WINVER _WIN32_WINNT_WIN7
 
 #include <algorithm>
+#include <mutex>
 #include <random>
 #include <string>
 
@@ -32,13 +33,14 @@ namespace
 		{
 			if (index >= count) FB2K_BugCheck();
 
+			init();
+
 			const std::string str = std::string(component_name) + std::to_string(index);
 
-			auto api = hasher_md5::get();
 			hasher_md5_state state;
-			api->initialize(state);
-			api->process_string(state, str.c_str());
-			return api->get_result_guid(state);
+			m_hasher->initialize(state);
+			m_hasher->process_string(state, str.c_str());
+			return m_hasher->get_result_guid(state);
 		}
 
 		GUID get_parent() final
@@ -73,11 +75,12 @@ namespace
 		{
 			if (index >= count) FB2K_BugCheck();
 
-			auto api = playlist_manager::get();
-			const size_t item_count = api->activeplaylist_get_item_count();
-			const size_t focusedIndex = api->activeplaylist_get_focus_item();
+			init();
+
+			const size_t item_count = m_plman->activeplaylist_get_item_count();
+			const size_t focused_index = m_plman->activeplaylist_get_focus_item();
 		
-			if (item_count == 0U || (index < last && index >= item_count) || (index == focused && focusedIndex == SIZE_MAX))
+			if (item_count == 0U || (index < last && index >= item_count) || (index == focused && focused_index == SIZE_MAX))
 			{
 				flags = mainmenu_commands::flag_disabled;
 			}
@@ -95,33 +98,34 @@ namespace
 		{
 			if (index >= count) FB2K_BugCheck();
 
-			auto api = playlist_manager::get();
-			const size_t item_count = api->activeplaylist_get_item_count();
+			init();
+
+			const size_t item_count = m_plman->activeplaylist_get_item_count();
 			if (item_count == 0U) return;
 			const size_t last_item_index = item_count - 1U;
 
 			if (index == focused)
 			{
-				const size_t focusedIndex = api->activeplaylist_get_focus_item();
-				if (focusedIndex != SIZE_MAX)
+				const size_t focused_index = m_plman->activeplaylist_get_focus_item();
+				if (focused_index != SIZE_MAX)
 				{
-					api->activeplaylist_execute_default_action(focusedIndex);
+					m_plman->activeplaylist_execute_default_action(focused_index);
 				}
 			}
 			else if (index == last)
 			{
-				api->activeplaylist_execute_default_action(last_item_index);
+				m_plman->activeplaylist_execute_default_action(last_item_index);
 			}
 			else if (index == random)
 			{
 				auto g = std::mt19937(random_device());
 				auto dist = std::uniform_int_distribution<size_t>(0U, last_item_index);
-				const size_t randomIndex = dist(g);
-				api->activeplaylist_execute_default_action(randomIndex);
+				const size_t random_index = dist(g);
+				m_plman->activeplaylist_execute_default_action(random_index);
 			}
 			else if (index < item_count)
 			{
-				api->activeplaylist_execute_default_action(index);
+				m_plman->activeplaylist_execute_default_action(index);
 			}
 		}
 
@@ -148,10 +152,23 @@ namespace
 		}
 
 	private:
+		void init()
+		{
+			std::call_once(m_once_flag, [this]
+				{
+					m_hasher = hasher_md5::get();
+					m_plman = playlist_manager::get();
+				});
+		}
+
 		static constexpr uint32_t last = 30U;
 		static constexpr uint32_t random = 31U;
 		static constexpr uint32_t focused = 32U;
 		static constexpr uint32_t count = 33U;
+
+		hasher_md5::ptr m_hasher;
+		playlist_manager::ptr m_plman;
+		std::once_flag m_once_flag;
 	};
 
 	class CommandLineHandler : public commandline_handler
